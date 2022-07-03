@@ -34,6 +34,8 @@ import bmesh
 import mathutils as M
 from itertools import chain, repeat, product, combinations
 from math import pi, asin, atan2
+import math
+from os import path as os_path
 
 
 
@@ -701,9 +703,9 @@ def island_item_changed(self, context):
     if self.auto_label:
         self["label"] = ""  # avoid self-conflict
         number = 1
-        while any(item.label == "Island {}".format(number) for item in island_list):
+        while any(item.label == "I {}".format(number) for item in island_list):
             number += 1
-        self["label"] = "Island {}".format(number)
+        self["label"] = "I {}".format(number)
     if self.auto_abbrev:
         self["abbreviation"] = ""  # avoid self-conflict
         abbrev = "".join(first_letters(self.label))[:3].upper()
@@ -866,7 +868,8 @@ class Svg:
                             self.text_tag.format(
                                 size=1000 * self.text_size,
                                 x=1000 * (island.bounding_box.x*0.5 + island.pos.x + self.margin.x),
-                                y=1000 * (self.page_size.y - island.pos.y - self.margin.y - 0.2 * self.text_size),
+                                y=1000 * (island.bounding_box.y*0.5 + island.pos.y + self.margin.y),
+                                # y=1000 * (self.page_size.y - island.pos.y - self.margin.y - 0.2 * self.text_size),
                                 label=island.title),
                             file=f)
 
@@ -1054,6 +1057,7 @@ class Pdf:
         style, color, width = (getattr(self.style, f"{name}_{arg}", None) for arg in ("style", "color", "width"))
         style = style or 'SOLID'
         result = ["q"]
+        width = width or 0.1
         if do_stroke:
             result += [
                 "[ " + " ".join("{:.3f}".format(num) for num in format_style[style]) + " ] 0 d",
@@ -1154,7 +1158,8 @@ class Pdf:
                     commands.append(self.command_label.format(
                         size=1000*self.text_size,
                         x=500 * (island.bounding_box.x - self.text_width(island.title)),
-                        y=1000 * 0.2 * self.text_size,
+                        # y=1000 * 0.2 * self.text_size,
+                        y=500 * (island.bounding_box.y),
                         label=island.title))
                     commands += reset_style
 
@@ -1676,6 +1681,7 @@ class Mesh:
                             target_island.add_marker(Arrow(target, default_width, index))
                             break
                 add_sticker(source, index, target)
+                add_sticker(target, index, source)
             elif len(edge.uvedges) > 2:
                 target = edge.uvedges[0]
             if len(edge.uvedges) > 2:
@@ -1813,7 +1819,7 @@ class Mesh:
 
     def save_separate_images(self, scale, filepath, embed=None):
         for i, island in enumerate(self.islands):
-            image_name = "Island {}".format(i)
+            image_name = "I {}".format(i)
             image = create_blank_image(image_name, island.bounding_box * scale, alpha=0)
             self.bake(island.faces.keys(), image)
             if embed:
@@ -1983,7 +1989,7 @@ class Island:
         # TODO: dots should be added in the last instant when outputting any text
         if is_upsidedown_wrong(abbr):
             abbr += "."
-        self.label = label or self.label or "Island {}".format(self.number)
+        self.label = label or self.label or "I {}".format(self.number)
         self.abbreviation = abbr
 
     def save_uv(self, tex, cage_size):
@@ -2385,8 +2391,10 @@ class Sticker:
         other_edge = other_second.co - other_first.co
 
         # angle a is at vertex uvedge.va, b is at uvedge.vb
-        cos_a = cos_b = 0.5
-        sin_a = sin_b = 0.75**0.5
+        # cos_a = cos_b = 0.5
+        # sin_a = sin_b = 0.75**0.5
+        cos_a = cos_b = math.cos(0.99 * math.pi / 2.0)
+        sin_a = sin_b = math.sin(0.99 * math.pi / 2.0)
         # len_a is length of the side adjacent to vertex a, len_b likewise
         len_a = len_b = sticker_width / sin_a
 
